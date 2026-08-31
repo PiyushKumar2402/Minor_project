@@ -1,3 +1,10 @@
+## Submitted By
+
+**Piyush Kumar** — 25MCC20061 — MCA (3rd Semester)
+
+**Mentor:** Shah Dhruv Samir (E19145)
+
+---
 # Online Doctor Appointment & Patient Queue Management System
 
 A full-stack system for booking doctor appointments (online/in-person), automatic
@@ -29,7 +36,7 @@ doctor-appointment-system/
 
 ## Development Roadmap (staged for incremental commits)
 - [x] **Stage 1** — Project scaffolding
-- [ ] **Stage 2** — Authentication & user management
+- [x] **Stage 2** — Authentication & user management
 - [ ] **Stage 3** — Doctor management (admin)
 - [ ] **Stage 4** — Doctor availability & automatic slot generation
 - [ ] **Stage 5** — Appointment booking core
