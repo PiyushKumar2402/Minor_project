@@ -1,23 +1,43 @@
-import { useEffect, useState } from "react";
-import { checkApiHealth } from "./api/health.js";
+import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
+import { AuthProvider, useAuth } from "./context/AuthContext.jsx";
+import Login from "./pages/Login.jsx";
+import Register from "./pages/Register.jsx";
 
-function App() {
-  const [status, setStatus] = useState("checking...");
+function Home() {
+  const { user, logout, loading } = useAuth();
 
-  useEffect(() => {
-    checkApiHealth()
-      .then((data) => setStatus(data.message))
-      .catch(() => setStatus("API not reachable — is the backend running?"));
-  }, []);
+  if (loading) return <p style={{ padding: "2rem" }}>Loading...</p>;
 
   return (
     <div style={{ fontFamily: "sans-serif", padding: "2rem" }}>
       <h1>Doctor Appointment & Queue Management System</h1>
-      <p>Stage 1 scaffolding — backend/frontend wiring check.</p>
-      <p>
-        <strong>API status:</strong> {status}
-      </p>
+      {user ? (
+        <>
+          <p>
+            Logged in as <strong>{user.name}</strong> ({user.role})
+          </p>
+          <button onClick={logout}>Log Out</button>
+        </>
+      ) : (
+        <p>
+          <Link to="/login">Log In</Link> | <Link to="/register">Register</Link>
+        </p>
+      )}
     </div>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 
