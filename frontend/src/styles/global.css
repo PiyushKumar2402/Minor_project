@@ -1,0 +1,226 @@
+:root {
+  --primary: #028090;
+  --primary-dark: #01646f;
+  --secondary: #00a896;
+  --accent: #02c39a;
+  --dark: #1a2e30;
+  --text: #2b2b2b;
+  --muted: #6b7a7a;
+  --light: #f4faf9;
+  --border: #dbe8e6;
+  --white: #ffffff;
+  --danger: #d64545;
+  --radius: 10px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Calibri, Arial, sans-serif;
+  color: var(--text);
+  background: var(--white);
+}
+
+a {
+  color: var(--primary);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+/* ---------- Navbar ---------- */
+.navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--dark);
+  color: var(--white);
+  padding: 0.9rem 1.5rem;
+}
+.navbar .brand {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: var(--white);
+}
+.navbar .brand:hover {
+  text-decoration: none;
+}
+.navbar .nav-links {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+.navbar .nav-links a,
+.navbar .nav-links button {
+  color: var(--white);
+  font-size: 0.95rem;
+}
+.navbar .role-badge {
+  background: var(--accent);
+  color: var(--dark);
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-block;
+  border: none;
+  border-radius: var(--radius);
+  padding: 0.55rem 1.1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--primary);
+  color: var(--white);
+  transition: background 0.15s ease;
+}
+.btn:hover {
+  background: var(--primary-dark);
+}
+.btn.btn-secondary {
+  background: var(--white);
+  color: var(--primary);
+  border: 1px solid var(--primary);
+}
+.btn.btn-secondary:hover {
+  background: var(--light);
+}
+.btn.btn-danger {
+  background: var(--danger);
+}
+.btn.btn-danger:hover {
+  background: #b53838;
+}
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ---------- Cards ---------- */
+.card {
+  background: var(--light);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.2rem;
+}
+
+.doctor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.doctor-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.1rem;
+}
+.doctor-card h3 {
+  margin: 0 0 0.2rem 0;
+  font-size: 1.05rem;
+  color: var(--dark);
+}
+.doctor-card .specialization {
+  color: var(--secondary);
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+.doctor-card p {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 0.25rem 0;
+}
+
+/* ---------- Forms ---------- */
+.form-group {
+  margin-bottom: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.form-group label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.form-group input,
+.form-group select,
+.form-group textarea {
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-family: inherit;
+}
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+.form-card {
+  max-width: 420px;
+  margin: 2rem auto;
+}
+
+.error-text {
+  color: var(--danger);
+  font-size: 0.85rem;
+}
+
+/* ---------- Table (admin lists) ---------- */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.data-table th,
+.data-table td {
+  text-align: left;
+  padding: 0.65rem 0.8rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+.data-table th {
+  background: var(--light);
+  color: var(--dark);
+}
+.data-table tr:last-child td {
+  border-bottom: none;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+.page-header h1 {
+  margin: 0;
+  color: var(--dark);
+}
+.subtitle {
+  color: var(--muted);
+  margin-top: 0;
+}

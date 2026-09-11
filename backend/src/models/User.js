@@ -29,11 +29,29 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-    // Doctor-specific fields — left empty for patients/admins,
-    // filled in properly in Stage 3 (Doctor Management)
+
+    // ----- Doctor-specific fields (Stage 3) -----
+    // Left null/empty for patients and admins.
     specialization: {
       type: String,
       default: null,
+    },
+    bio: {
+      type: String,
+      default: "",
+    },
+    experienceYears: {
+      type: Number,
+      default: 0,
+    },
+    consultationFee: {
+      type: Number,
+      default: 0,
+    },
+    isActive: {
+      // lets admin deactivate a doctor without fully deleting their account/history
+      type: Boolean,
+      default: true,
     },
   },
   { timestamps: true }

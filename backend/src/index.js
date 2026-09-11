@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import connectDB from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
+import doctorRoutes from "./routes/doctorRoutes.js";
 
 dotenv.config();
 
@@ -16,12 +17,13 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok", message: "Doctor Appointment API is running" });
 });
 
-// Auth routes (Stage 2)
+// Routes
 app.use("/api/auth", authRoutes);
+app.use("/api/doctors", doctorRoutes);
 
 // Further route mounts will be added here in later stages, e.g.:
-// import doctorRoutes from "./routes/doctorRoutes.js";
-// app.use("/api/doctors", doctorRoutes);
+// import appointmentRoutes from "./routes/appointmentRoutes.js";
+// app.use("/api/appointments", appointmentRoutes);
 
 const PORT = process.env.PORT || 5000;
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { registerUser } from "../api/auth.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
@@ -26,31 +26,45 @@ function Register() {
   };
 
   return (
-    <div style={{ maxWidth: 400, margin: "2rem auto", fontFamily: "sans-serif" }}>
-      <h2>Create an Account</h2>
-      <form onSubmit={handleSubmit}>
-        <input name="name" placeholder="Full name" value={form.name} onChange={handleChange} required />
-        <br />
-        <input name="email" type="email" placeholder="Email" value={form.email} onChange={handleChange} required />
-        <br />
-        <input
-          name="password"
-          type="password"
-          placeholder="Password (min 6 characters)"
-          value={form.password}
-          onChange={handleChange}
-          required
-          minLength={6}
-        />
-        <br />
-        <select name="role" value={form.role} onChange={handleChange}>
-          <option value="patient">Patient</option>
-          <option value="doctor">Doctor</option>
-        </select>
-        <br />
-        {error && <p style={{ color: "red" }}>{error}</p>}
-        <button type="submit">Register</button>
-      </form>
+    <div className="container">
+      <div className="card form-card">
+        <h2 style={{ marginTop: 0 }}>Create an Account</h2>
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label>Full name</label>
+            <input name="name" value={form.name} onChange={handleChange} required />
+          </div>
+          <div className="form-group">
+            <label>Email</label>
+            <input name="email" type="email" value={form.email} onChange={handleChange} required />
+          </div>
+          <div className="form-group">
+            <label>Password (min 6 characters)</label>
+            <input
+              name="password"
+              type="password"
+              value={form.password}
+              onChange={handleChange}
+              required
+              minLength={6}
+            />
+          </div>
+          <div className="form-group">
+            <label>I am registering as a</label>
+            <select name="role" value={form.role} onChange={handleChange}>
+              <option value="patient">Patient</option>
+              <option value="doctor">Doctor</option>
+            </select>
+          </div>
+          {error && <p className="error-text">{error}</p>}
+          <button type="submit" className="btn" style={{ width: "100%" }}>
+            Register
+          </button>
+        </form>
+        <p style={{ marginTop: "1rem", fontSize: "0.9rem" }}>
+          Already have an account? <Link to="/login">Log In</Link>
+        </p>
+      </div>
     </div>
   );
 }

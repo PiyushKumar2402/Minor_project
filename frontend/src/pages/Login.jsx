@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { loginUser } from "../api/auth.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
@@ -26,23 +26,27 @@ function Login() {
   };
 
   return (
-    <div style={{ maxWidth: 400, margin: "2rem auto", fontFamily: "sans-serif" }}>
-      <h2>Log In</h2>
-      <form onSubmit={handleSubmit}>
-        <input name="email" type="email" placeholder="Email" value={form.email} onChange={handleChange} required />
-        <br />
-        <input
-          name="password"
-          type="password"
-          placeholder="Password"
-          value={form.password}
-          onChange={handleChange}
-          required
-        />
-        <br />
-        {error && <p style={{ color: "red" }}>{error}</p>}
-        <button type="submit">Log In</button>
-      </form>
+    <div className="container">
+      <div className="card form-card">
+        <h2 style={{ marginTop: 0 }}>Log In</h2>
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label>Email</label>
+            <input name="email" type="email" value={form.email} onChange={handleChange} required />
+          </div>
+          <div className="form-group">
+            <label>Password</label>
+            <input name="password" type="password" value={form.password} onChange={handleChange} required />
+          </div>
+          {error && <p className="error-text">{error}</p>}
+          <button type="submit" className="btn" style={{ width: "100%" }}>
+            Log In
+          </button>
+        </form>
+        <p style={{ marginTop: "1rem", fontSize: "0.9rem" }}>
+          Don't have an account? <Link to="/register">Register</Link>
+        </p>
+      </div>
     </div>
   );
 }

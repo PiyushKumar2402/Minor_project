@@ -1,27 +1,29 @@
-import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext.jsx";
+import Navbar from "./components/Navbar.jsx";
 import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
+import Doctors from "./pages/Doctors.jsx";
+import DoctorProfile from "./pages/DoctorProfile.jsx";
+import AdminDoctors from "./pages/AdminDoctors.jsx";
+import "./styles/global.css";
 
 function Home() {
-  const { user, logout, loading } = useAuth();
+  const { user, loading } = useAuth();
 
-  if (loading) return <p style={{ padding: "2rem" }}>Loading...</p>;
+  if (loading) return <div className="container">Loading...</div>;
 
   return (
-    <div style={{ fontFamily: "sans-serif", padding: "2rem" }}>
-      <h1>Doctor Appointment & Queue Management System</h1>
+    <div className="container">
+      <div className="page-header">
+        <h1>Doctor Appointment & Queue Management System</h1>
+      </div>
       {user ? (
-        <>
-          <p>
-            Logged in as <strong>{user.name}</strong> ({user.role})
-          </p>
-          <button onClick={logout}>Log Out</button>
-        </>
-      ) : (
-        <p>
-          <Link to="/login">Log In</Link> | <Link to="/register">Register</Link>
+        <p className="subtitle">
+          Welcome back, <strong>{user.name}</strong> ({user.role}).
         </p>
+      ) : (
+        <p className="subtitle">Log in or register to book an appointment.</p>
       )}
     </div>
   );
@@ -31,10 +33,14 @@ function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        <Navbar />
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/doctors" element={<Doctors />} />
+          <Route path="/doctors/:id" element={<DoctorProfile />} />
+          <Route path="/admin/doctors" element={<AdminDoctors />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
