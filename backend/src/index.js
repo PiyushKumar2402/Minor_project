@@ -4,6 +4,8 @@ import dotenv from "dotenv";
 import connectDB from "./config/db.js";
 import authRoutes from "./routes/authRoutes.js";
 import doctorRoutes from "./routes/doctorRoutes.js";
+import availabilityRoutes from "./routes/availabilityRoutes.js";
+import slotRoutes from "./routes/slotRoutes.js";
 
 dotenv.config();
 
@@ -20,6 +22,8 @@ app.get("/api/health", (req, res) => {
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/doctors", doctorRoutes);
+app.use("/api/availability", availabilityRoutes);
+app.use("/api/slots", slotRoutes);
 
 // Further route mounts will be added here in later stages, e.g.:
 // import appointmentRoutes from "./routes/appointmentRoutes.js";

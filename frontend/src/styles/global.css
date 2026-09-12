@@ -91,7 +91,7 @@ a:hover {
   background: var(--primary-dark);
 }
 .btn.btn-secondary {
-  background: var(--white);
+  background: var(--black);
   color: var(--primary);
   border: 1px solid var(--primary);
 }

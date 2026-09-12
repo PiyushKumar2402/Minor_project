@@ -12,6 +12,7 @@ function Navbar() {
       <div className="nav-links">
         <Link to="/doctors">Find a Doctor</Link>
         {user?.role === "admin" && <Link to="/admin/doctors">Manage Doctors</Link>}
+        {user?.role === "doctor" && <Link to="/my-availability">My Availability</Link>}
         {user ? (
           <>
             <span className="role-badge">{user.role}</span>

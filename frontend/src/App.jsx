@@ -6,6 +6,7 @@ import Register from "./pages/Register.jsx";
 import Doctors from "./pages/Doctors.jsx";
 import DoctorProfile from "./pages/DoctorProfile.jsx";
 import AdminDoctors from "./pages/AdminDoctors.jsx";
+import DoctorAvailability from "./pages/DoctorAvailability.jsx";
 import "./styles/global.css";
 
 function Home() {
@@ -41,6 +42,7 @@ function App() {
           <Route path="/doctors" element={<Doctors />} />
           <Route path="/doctors/:id" element={<DoctorProfile />} />
           <Route path="/admin/doctors" element={<AdminDoctors />} />
+          <Route path="/my-availability" element={<DoctorAvailability />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

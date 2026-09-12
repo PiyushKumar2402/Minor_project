@@ -3,9 +3,12 @@ import generateToken from "../config/generateToken.js";
 
 // @route  POST /api/auth/register
 // @access Public
+// Public self-registration is PATIENT-ONLY on purpose. Doctor accounts are
+// created exclusively by an Admin via /admin/doctors (Stage 3), so that every
+// doctor has a vetted specialization, fee, and profile from the start.
 export const registerUser = async (req, res) => {
   try {
-    const { name, email, password, role, phone } = req.body;
+    const { name, email, password, phone } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({ message: "Name, email, and password are required" });
@@ -16,16 +19,11 @@ export const registerUser = async (req, res) => {
       return res.status(400).json({ message: "An account with this email already exists" });
     }
 
-    // Only allow "patient" or "doctor" at self-registration.
-    // Admin accounts should be created directly in the DB or by an existing admin (Stage 3+).
-    const allowedRoles = ["patient", "doctor"];
-    const finalRole = allowedRoles.includes(role) ? role : "patient";
-
     const user = await User.create({
       name,
       email,
       password,
-      role: finalRole,
+      role: "patient",
       phone,
     });
 

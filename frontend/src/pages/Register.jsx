@@ -4,7 +4,7 @@ import { registerUser } from "../api/auth.js";
 import { useAuth } from "../context/AuthContext.jsx";
 
 function Register() {
-  const [form, setForm] = useState({ name: "", email: "", password: "", role: "patient" });
+  const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [error, setError] = useState("");
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -28,7 +28,11 @@ function Register() {
   return (
     <div className="container">
       <div className="card form-card">
-        <h2 style={{ marginTop: 0 }}>Create an Account</h2>
+        <h2 style={{ marginTop: 0 }}>Create a Patient Account</h2>
+        <p className="subtitle" style={{ marginTop: 0, fontSize: "0.85rem" }}>
+          Doctor accounts are created by the clinic admin — if you're a doctor, ask
+          your admin to set up your account.
+        </p>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label>Full name</label>
@@ -48,13 +52,6 @@ function Register() {
               required
               minLength={6}
             />
-          </div>
-          <div className="form-group">
-            <label>I am registering as a</label>
-            <select name="role" value={form.role} onChange={handleChange}>
-              <option value="patient">Patient</option>
-              <option value="doctor">Doctor</option>
-            </select>
           </div>
           {error && <p className="error-text">{error}</p>}
           <button type="submit" className="btn" style={{ width: "100%" }}>
