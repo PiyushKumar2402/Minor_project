@@ -37,8 +37,8 @@ doctor-appointment-system/
 ## Development Roadmap (staged for incremental commits)
 - [x] **Stage 1** — Project scaffolding
 - [x] **Stage 2** — Authentication & user management
-- [ ] **Stage 3** — Doctor management (admin)
-- [ ] **Stage 4** — Doctor availability & automatic slot generation
+- [x] **Stage 3** — Doctor management (admin)
+- [x] **Stage 4** — Doctor availability & automatic slot generation
 - [ ] **Stage 5** — Appointment booking core
 - [ ] **Stage 6** — Online/in-person consultation modes + Zoom integration
 - [ ] **Stage 7** — Gmail notification system
