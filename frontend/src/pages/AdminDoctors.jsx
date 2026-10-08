@@ -10,6 +10,7 @@ const emptyForm = {
   bio: "",
   experienceYears: 0,
   consultationFee: 0,
+  roomNumber: "",
   phone: "",
 };
 
@@ -55,7 +56,6 @@ function AdminDoctors() {
     setError("");
     try {
       if (editingId) {
-        // Password isn't editable here on purpose — keep updates to profile fields
         const { password, email, ...editableFields } = form;
         await updateDoctor(editingId, editableFields, token);
       } else {
@@ -78,6 +78,7 @@ function AdminDoctors() {
       bio: doctor.bio || "",
       experienceYears: doctor.experienceYears || 0,
       consultationFee: doctor.consultationFee || 0,
+      roomNumber: doctor.roomNumber || "",
       phone: doctor.phone || "",
     });
   };
@@ -159,6 +160,10 @@ function AdminDoctors() {
             />
           </div>
           <div className="form-group">
+            <label>Room number (for in-person visits)</label>
+            <input name="roomNumber" value={form.roomNumber} onChange={handleChange} placeholder="e.g. 204" />
+          </div>
+          <div className="form-group">
             <label>Phone</label>
             <input name="phone" value={form.phone} onChange={handleChange} />
           </div>
@@ -188,6 +193,7 @@ function AdminDoctors() {
               <th>Name</th>
               <th>Specialization</th>
               <th>Email</th>
+              <th>Room</th>
               <th>Experience</th>
               <th>Fee</th>
               <th>Actions</th>
@@ -199,6 +205,7 @@ function AdminDoctors() {
                 <td>{doc.name}</td>
                 <td>{doc.specialization}</td>
                 <td>{doc.email}</td>
+                <td>{doc.roomNumber || "—"}</td>
                 <td>{doc.experienceYears || 0} yrs</td>
                 <td>₹{doc.consultationFee || 0}</td>
                 <td style={{ display: "flex", gap: "0.4rem" }}>

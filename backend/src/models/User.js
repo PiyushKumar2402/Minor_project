@@ -30,8 +30,7 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
 
-    // ----- Doctor-specific fields (Stage 3) -----
-    // Left null/empty for patients and admins.
+    // ----- Doctor-specific fields -----
     specialization: {
       type: String,
       default: null,
@@ -48,8 +47,13 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    roomNumber: {
+      // used for in-person appointments (Stage 6)
+      type: String,
+      default: "",
+      trim: true,
+    },
     isActive: {
-      // lets admin deactivate a doctor without fully deleting their account/history
       type: Boolean,
       default: true,
     },
@@ -57,7 +61,6 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Hash password before saving, but only if it was changed
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
   const salt = await bcrypt.genSalt(10);
@@ -65,7 +68,6 @@ userSchema.pre("save", async function (next) {
   next();
 });
 
-// Instance method to compare plaintext password with the hashed one
 userSchema.methods.matchPassword = async function (enteredPassword) {
   return bcrypt.compare(enteredPassword, this.password);
 };

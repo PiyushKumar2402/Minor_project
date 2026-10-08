@@ -6,8 +6,8 @@ const authHeaders = (token) => ({
   headers: { Authorization: `Bearer ${token}` },
 });
 
-export const bookAppointment = async (doctorId, slotId, token) => {
-  const { data } = await axios.post(API_BASE, { doctorId, slotId }, authHeaders(token));
+export const bookAppointment = async (doctorId, slotId, mode, token) => {
+  const { data } = await axios.post(API_BASE, { doctorId, slotId, mode }, authHeaders(token));
   return data;
 };
 

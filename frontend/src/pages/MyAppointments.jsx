@@ -50,6 +50,46 @@ function MyAppointments() {
   const upcoming = appointments.filter((a) => a.status === "booked" && a.date >= today);
   const past = appointments.filter((a) => a.status !== "booked" || a.date < today);
 
+  const renderDetails = (appt) => {
+    if (appt.mode === "online") {
+      return (
+        <>
+          <strong>Online (Zoom)</strong>
+          {appt.status === "booked" && appt.meetingJoinUrl && (
+            <>
+              <br />
+              <a href={appt.meetingJoinUrl} target="_blank" rel="noreferrer">
+                Join meeting
+              </a>
+              <br />
+              <span style={{ color: "var(--muted)", fontSize: "0.8rem" }}>
+                ID: {appt.meetingId}
+                {appt.meetingPassword && ` · Passcode: ${appt.meetingPassword}`}
+              </span>
+              {appt.meetingIsDemo && (
+                <>
+                  <br />
+                  <span style={{ color: "var(--danger)", fontSize: "0.75rem" }}>Demo link (Zoom not connected)</span>
+                </>
+              )}
+            </>
+          )}
+        </>
+      );
+    }
+    return (
+      <>
+        <strong>In-Person</strong>
+        {appt.room && (
+          <>
+            <br />
+            <span style={{ color: "var(--muted)", fontSize: "0.8rem" }}>Room {appt.room}</span>
+          </>
+        )}
+      </>
+    );
+  };
+
   const renderRow = (appt) => (
     <tr key={appt._id}>
       <td>{appt.date}</td>
@@ -61,6 +101,7 @@ function MyAppointments() {
         <br />
         <span style={{ color: "var(--muted)", fontSize: "0.8rem" }}>{appt.doctor?.specialization}</span>
       </td>
+      <td>{renderDetails(appt)}</td>
       <td>{appt.queueNumber}</td>
       <td style={{ textTransform: "capitalize" }}>{appt.status}</td>
       <td>
@@ -75,6 +116,20 @@ function MyAppointments() {
         )}
       </td>
     </tr>
+  );
+
+  const tableHead = (
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Time</th>
+        <th>Doctor</th>
+        <th>Type</th>
+        <th>Queue #</th>
+        <th>Status</th>
+        <th></th>
+      </tr>
+    </thead>
   );
 
   return (
@@ -97,16 +152,7 @@ function MyAppointments() {
             <p style={{ color: "var(--muted)" }}>No upcoming appointments.</p>
           ) : (
             <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Time</th>
-                  <th>Doctor</th>
-                  <th>Queue #</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
+              {tableHead}
               <tbody>{upcoming.map(renderRow)}</tbody>
             </table>
           )}
@@ -116,16 +162,7 @@ function MyAppointments() {
             <p style={{ color: "var(--muted)" }}>Nothing here yet.</p>
           ) : (
             <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Time</th>
-                  <th>Doctor</th>
-                  <th>Queue #</th>
-                  <th>Status</th>
-                  <th></th>
-                </tr>
-              </thead>
+              {tableHead}
               <tbody>{past.map(renderRow)}</tbody>
             </table>
           )}

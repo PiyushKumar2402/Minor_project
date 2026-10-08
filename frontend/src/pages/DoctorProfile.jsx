@@ -15,6 +15,7 @@ function DoctorProfile() {
   const [doctor, setDoctor] = useState(null);
   const [error, setError] = useState("");
   const [date, setDate] = useState(todayISO());
+  const [mode, setMode] = useState("in-person");
   const [slotData, setSlotData] = useState(null);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotsError, setSlotsError] = useState("");
@@ -58,14 +59,22 @@ function DoctorProfile() {
 
     setBookingSlotId(slot._id);
     try {
-      const appointment = await bookAppointment(id, slot._id, token);
-      setBookingMessage(
-        `Booked! Your queue number is ${appointment.queueNumber} for ${appointment.date} at ${appointment.startTime}.`
-      );
-      loadSlots(); // refresh so the booked slot now shows as unavailable
+      const appt = await bookAppointment(id, slot._id, mode, token);
+      if (appt.mode === "online") {
+        setBookingMessage(
+          `Online consultation booked for ${appt.date} at ${appt.startTime}. Queue number: ${appt.queueNumber}. Your Zoom link is in My Appointments.`
+        );
+      } else {
+        setBookingMessage(
+          `In-person appointment booked for ${appt.date} at ${appt.startTime}. Queue number: ${appt.queueNumber}${
+            appt.room ? `, Room ${appt.room}` : ""
+          }.`
+        );
+      }
+      loadSlots();
     } catch (err) {
       setBookingError(err.response?.data?.message || "Could not book this slot");
-      loadSlots(); // in case it was a race-condition conflict, refresh to show current state
+      loadSlots();
     } finally {
       setBookingSlotId(null);
     }
@@ -103,10 +112,42 @@ function DoctorProfile() {
         <p>
           <strong>Consultation Fee:</strong> ₹{doctor.consultationFee || 0}
         </p>
+        {doctor.roomNumber && (
+          <p>
+            <strong>Room (in-person):</strong> {doctor.roomNumber}
+          </p>
+        )}
       </div>
 
       <div className="card" style={{ marginTop: "1.25rem", maxWidth: 640 }}>
         <h3 style={{ marginTop: 0 }}>Book an Appointment</h3>
+
+        <div className="form-group">
+          <label>Consultation type</label>
+          <div style={{ display: "flex", gap: "1.25rem" }}>
+            <label style={{ fontWeight: 400 }}>
+              <input
+                type="radio"
+                name="mode"
+                value="in-person"
+                checked={mode === "in-person"}
+                onChange={() => setMode("in-person")}
+              />{" "}
+              In-Person
+            </label>
+            <label style={{ fontWeight: 400 }}>
+              <input
+                type="radio"
+                name="mode"
+                value="online"
+                checked={mode === "online"}
+                onChange={() => setMode("online")}
+              />{" "}
+              Online (Zoom)
+            </label>
+          </div>
+        </div>
+
         <div className="form-group" style={{ maxWidth: 220 }}>
           <label>Select a date</label>
           <input type="date" value={date} min={todayISO()} onChange={(e) => setDate(e.target.value)} />
@@ -138,7 +179,7 @@ function DoctorProfile() {
                         opacity: isBooked ? 0.5 : 1,
                         cursor: isBooked ? "not-allowed" : "pointer",
                       }}
-                      title={isBooked ? "Already booked" : "Click to book this slot"}
+                      title={isBooked ? "Already booked" : `Book this slot (${mode})`}
                     >
                       {isSubmitting ? "Booking..." : slot.startTime}
                     </button>

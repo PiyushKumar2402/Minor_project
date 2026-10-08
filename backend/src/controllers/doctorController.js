@@ -10,10 +10,7 @@ export const getDoctors = async (req, res) => {
       filter.specialization = req.query.specialization;
     }
 
-    const doctors = await User.find(filter)
-      .select("-password")
-      .sort({ createdAt: -1 });
-
+    const doctors = await User.find(filter).select("-password").sort({ createdAt: -1 });
     res.json(doctors);
   } catch (error) {
     res.status(500).json({ message: "Could not fetch doctors", error: error.message });
@@ -22,7 +19,6 @@ export const getDoctors = async (req, res) => {
 
 // @route  GET /api/doctors/specializations
 // @access Public
-// Returns the distinct list of specializations currently in use, for the filter dropdown
 export const getSpecializations = async (req, res) => {
   try {
     const specializations = await User.distinct("specialization", {
@@ -52,10 +48,10 @@ export const getDoctorById = async (req, res) => {
 
 // @route  POST /api/doctors
 // @access Private/Admin
-// Admin directly creates a doctor account
 export const createDoctor = async (req, res) => {
   try {
-    const { name, email, password, specialization, bio, experienceYears, consultationFee, phone } = req.body;
+    const { name, email, password, specialization, bio, experienceYears, consultationFee, roomNumber, phone } =
+      req.body;
 
     if (!name || !email || !password || !specialization) {
       return res.status(400).json({ message: "Name, email, password, and specialization are required" });
@@ -75,6 +71,7 @@ export const createDoctor = async (req, res) => {
       bio,
       experienceYears,
       consultationFee,
+      roomNumber,
       phone,
     });
 
@@ -101,6 +98,7 @@ export const updateDoctor = async (req, res) => {
       "bio",
       "experienceYears",
       "consultationFee",
+      "roomNumber",
       "isActive",
     ];
     editableFields.forEach((field) => {
