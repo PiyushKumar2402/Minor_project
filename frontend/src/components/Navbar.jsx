@@ -11,6 +11,7 @@ function Navbar() {
       </Link>
       <div className="nav-links">
         <Link to="/doctors">Find a Doctor</Link>
+        {user?.role === "patient" && <Link to="/my-appointments">My Appointments</Link>}
         {user?.role === "admin" && <Link to="/admin/doctors">Manage Doctors</Link>}
         {user?.role === "doctor" && <Link to="/my-availability">My Availability</Link>}
         {user ? (
