@@ -3,6 +3,8 @@ import Slot from "../models/Slot.js";
 import User from "../models/User.js";
 import { createZoomMeeting } from "../utils/zoom.js";
 import { timeToMinutes } from "../utils/slotGenerator.js";
+import { sendEmail } from "../utils/mailer.js";
+import { buildBookingEmail, buildCancellationEmail } from "../utils/emailTemplates.js";
 
 const VALID_MODES = ["online", "in-person"];
 
@@ -14,6 +16,12 @@ const generateQueueNumber = async (doctorId, date) => {
     status: { $ne: "cancelled" },
   });
   return "A" + String(count + 1).padStart(2, "0");
+};
+
+// Sends an email in the background. sendEmail() never throws, so this can never
+// break the request that triggered it, and the patient doesn't wait for Gmail.
+const sendInBackground = (message) => {
+  sendEmail(message).catch((err) => console.error("[email] unexpected error:", err.message));
 };
 
 // @route  POST /api/appointments
@@ -47,6 +55,7 @@ export const bookAppointment = async (req, res) => {
       return res.status(409).json({ message: "This slot was just booked by someone else. Please pick another." });
     }
 
+    let appointment;
     try {
       const queueNumber = await generateQueueNumber(doctorId, claimedSlot.date);
 
@@ -78,17 +87,23 @@ export const bookAppointment = async (req, res) => {
         details.meetingIsDemo = meeting.isDemo;
       }
 
-      const appointment = await Appointment.create(details);
-
-      // The host (start) link is for the doctor only — never send it to the patient
-      const response = appointment.toObject();
-      delete response.meetingStartUrl;
-      res.status(201).json(response);
+      appointment = await Appointment.create(details);
     } catch (creationError) {
       // Anything failed after the slot was claimed (e.g. Zoom is down): free the slot again
       await Slot.findByIdAndUpdate(claimedSlot._id, { $set: { status: "available" } });
       throw creationError;
     }
+
+    // Confirmation email (Stage 7). Booking is already saved — email problems can't undo it.
+    const patient = await User.findById(req.user.id).select("name email");
+    if (patient) {
+      sendInBackground(buildBookingEmail({ appointment, doctor, patient }));
+    }
+
+    // The host (start) link is for the doctor only — never send it to the patient
+    const response = appointment.toObject();
+    delete response.meetingStartUrl;
+    res.status(201).json(response);
   } catch (error) {
     res.status(500).json({ message: `Could not book appointment: ${error.message}` });
   }
@@ -146,7 +161,19 @@ export const cancelAppointment = async (req, res) => {
 
     await Slot.findByIdAndUpdate(appointment.slot, { $set: { status: "available" } });
 
-    res.json({ message: "Appointment cancelled", appointment });
+    // Cancellation email (Stage 7)
+    const [doctor, patient] = await Promise.all([
+      User.findById(appointment.doctor).select("name"),
+      User.findById(appointment.patient).select("name email"),
+    ]);
+    if (doctor && patient) {
+      sendInBackground(buildCancellationEmail({ appointment, doctor, patient }));
+    }
+
+    // Don't hand the Zoom host link back to the patient
+    const response = appointment.toObject();
+    delete response.meetingStartUrl;
+    res.json({ message: "Appointment cancelled", appointment: response });
   } catch (error) {
     res.status(500).json({ message: "Could not cancel appointment", error: error.message });
   }
