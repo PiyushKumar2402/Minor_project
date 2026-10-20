@@ -1,30 +1,47 @@
-import { Link } from "react-router-dom";
+import { NavLink, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
+import Icon from "./Icon.jsx";
 
 function Navbar() {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+  };
 
   return (
     <nav className="navbar">
       <Link to="/" className="brand">
-        Doctor Appointment System
+        <span className="brand-mark"><Icon name="pulse" size={18} /></span>
+        MediQueue
       </Link>
+
       <div className="nav-links">
-        <Link to="/doctors">Find a Doctor</Link>
-        {user?.role === "patient" && <Link to="/my-appointments">My Appointments</Link>}
-        {user?.role === "admin" && <Link to="/admin/doctors">Manage Doctors</Link>}
-        {user?.role === "doctor" && <Link to="/my-availability">My Availability</Link>}
+        <NavLink to="/doctors">Find doctors</NavLink>
+        {user?.role === "patient" && <NavLink to="/my-appointments">My appointments</NavLink>}
+        {user?.role === "doctor" && (
+          <>
+            <NavLink to="/doctor/queue">Today's queue</NavLink>
+            <NavLink to="/my-availability">My availability</NavLink>
+          </>
+        )}
+        {user?.role === "admin" && <NavLink to="/admin/doctors">Manage doctors</NavLink>}
+
         {user ? (
           <>
-            <span className="role-badge">{user.role}</span>
-            <button onClick={logout} className="btn btn-secondary" style={{ padding: "0.3rem 0.8rem" }}>
-              Log Out
-            </button>
+            <span className="user-chip">
+              <Icon name="user" size={15} />
+              {user.name}
+              <span className="role-badge">{user.role}</span>
+            </span>
+            <button className="btn btn-secondary btn-sm" onClick={handleLogout}>Logout</button>
           </>
         ) : (
           <>
-            <Link to="/login">Log In</Link>
-            <Link to="/register">Register</Link>
+            <NavLink to="/login">Login</NavLink>
+            <Link to="/register" className="btn btn-sm">Register</Link>
           </>
         )}
       </div>

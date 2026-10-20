@@ -1,206 +1,237 @@
-import { useEffect, useState } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
-import { getDoctorById } from "../api/doctors.js";
-import { getSlotsForDate } from "../api/slots.js";
-import { bookAppointment } from "../api/appointments.js";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
+import { getDoctorById } from "../api/doctors.js";
+import { getAvailabilityByDoctorId } from "../api/availability.js";
+import { getSlotsForDate } from "../api/slots.js";
+import { bookAppointment, getMyAppointments } from "../api/appointments.js";
+import { nextDays, todayLocal, prettyDate, formatTime } from "../utils/date.js";
+import Avatar from "../components/Avatar.jsx";
+import Icon from "../components/Icon.jsx";
 
-const todayISO = () => new Date().toISOString().split("T")[0];
+const ACTIVE = ["booked", "waiting", "in-consultation"];
+const errMsg = (e, fallback) => e?.response?.data?.message || e?.message || fallback;
 
 function DoctorProfile() {
   const { id } = useParams();
   const { user, token } = useAuth();
-  const navigate = useNavigate();
 
   const [doctor, setDoctor] = useState(null);
-  const [error, setError] = useState("");
-  const [date, setDate] = useState(todayISO());
-  const [mode, setMode] = useState("in-person");
+  const [availability, setAvailability] = useState(undefined); // undefined = loading, null = not set
+  const [days] = useState(() => nextDays(14));
+  const [date, setDate] = useState("");
   const [slotData, setSlotData] = useState(null);
-  const [slotsLoading, setSlotsLoading] = useState(false);
-  const [slotsError, setSlotsError] = useState("");
-  const [bookingSlotId, setBookingSlotId] = useState(null);
-  const [bookingMessage, setBookingMessage] = useState("");
-  const [bookingError, setBookingError] = useState("");
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [selected, setSelected] = useState(null);
+  const [mode, setMode] = useState("in-person");
+  const [booking, setBooking] = useState(false);
+  const [error, setError] = useState("");
+  const [confirmed, setConfirmed] = useState(null);
+  const [mine, setMine] = useState([]);
 
   useEffect(() => {
-    getDoctorById(id)
-      .then(setDoctor)
-      .catch(() => setError("Doctor not found"));
+    getDoctorById(id).then(setDoctor).catch((e) => setError(errMsg(e, "Could not load doctor")));
+    getAvailabilityByDoctorId(id).then(setAvailability).catch(() => setAvailability(null));
   }, [id]);
 
-  const loadSlots = () => {
-    setSlotsLoading(true);
-    setSlotsError("");
-    getSlotsForDate(id, date)
-      .then(setSlotData)
-      .catch((err) => setSlotsError(err.response?.data?.message || "Could not load slots"))
-      .finally(() => setSlotsLoading(false));
+  const loadMine = () => {
+    if (user?.role === "patient" && token) {
+      getMyAppointments(token).then((d) => setMine(Array.isArray(d) ? d : [])).catch(() => {});
+    }
   };
+  useEffect(loadMine, [user, token]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Which weekdays are working days
+  const offDays = useMemo(() => {
+    const off = new Set();
+    availability?.schedule?.forEach((s) => s.isOff && off.add(s.day));
+    return off;
+  }, [availability]);
+  const isOff = (d) => !availability || offDays.has(d.weekdayLong);
+
+  // Default to the first working day
+  useEffect(() => {
+    if (!availability || date) return;
+    const first = days.find((d) => !isOff(d));
+    if (first) setDate(first.iso);
+  }, [availability]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (!doctor) return;
-    loadSlots();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, date, doctor]);
+    if (!date) return;
+    setSelected(null);
+    setError("");
+    setLoadingSlots(true);
+    getSlotsForDate(id, date)
+      .then(setSlotData)
+      .catch((e) => { setSlotData(null); setError(errMsg(e, "Could not load slots")); })
+      .finally(() => setLoadingSlots(false));
+  }, [id, date]);
 
-  const handleBook = async (slot) => {
-    setBookingMessage("");
-    setBookingError("");
+  const sameDay = mine.find((a) => a.date === date && ACTIVE.includes(a.status));
+  const slots = slotData?.slots || [];
+  const groups = [
+    { label: "Morning", items: slots.filter((s) => s.startTime < "12:00") },
+    { label: "Afternoon", items: slots.filter((s) => s.startTime >= "12:00" && s.startTime < "17:00") },
+    { label: "Evening", items: slots.filter((s) => s.startTime >= "17:00") },
+  ].filter((g) => g.items.length);
 
-    if (!user) {
-      navigate("/login");
-      return;
-    }
-    if (user.role !== "patient") {
-      setBookingError("Only patient accounts can book appointments.");
-      return;
-    }
-
-    setBookingSlotId(slot._id);
+  const handleBook = async () => {
+    if (!selected) return;
+    setBooking(true);
+    setError("");
     try {
-      const appt = await bookAppointment(id, slot._id, mode, token);
-      if (appt.mode === "online") {
-        setBookingMessage(
-          `Online consultation booked for ${appt.date} at ${appt.startTime}. Queue number: ${appt.queueNumber}. Your Zoom link is in My Appointments.`
-        );
-      } else {
-        setBookingMessage(
-          `In-person appointment booked for ${appt.date} at ${appt.startTime}. Queue number: ${appt.queueNumber}${
-            appt.room ? `, Room ${appt.room}` : ""
-          }.`
-        );
-      }
-      loadSlots();
-    } catch (err) {
-      setBookingError(err.response?.data?.message || "Could not book this slot");
-      loadSlots();
+      const appt = await bookAppointment(id, selected._id, mode, token);
+      setConfirmed(appt);
+      loadMine();
+    } catch (e) {
+      setError(errMsg(e, "Could not book this slot"));
+      getSlotsForDate(id, date).then(setSlotData).catch(() => {});
+      setSelected(null);
     } finally {
-      setBookingSlotId(null);
+      setBooking(false);
     }
   };
 
-  if (error) {
-    return (
-      <div className="container">
-        <p className="error-text">{error}</p>
-        <Link to="/doctors">Back to doctor list</Link>
-      </div>
-    );
-  }
+  if (!doctor) return <div className="container">{error ? <p className="error-text">{error}</p> : "Loading..."}</div>;
 
-  if (!doctor) {
+  if (confirmed) {
     return (
-      <div className="container">
-        <p>Loading...</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="container">
-      <Link to="/doctors">&larr; Back to doctor list</Link>
-      <div className="card" style={{ marginTop: "1rem", maxWidth: 640 }}>
-        <h1 style={{ marginTop: 0 }}>{doctor.name}</h1>
-        <p className="specialization" style={{ color: "var(--secondary)", fontWeight: 600 }}>
-          {doctor.specialization}
-        </p>
-        {doctor.bio && <p>{doctor.bio}</p>}
-        <p>
-          <strong>Experience:</strong> {doctor.experienceYears || 0} years
-        </p>
-        <p>
-          <strong>Consultation Fee:</strong> ₹{doctor.consultationFee || 0}
-        </p>
-        {doctor.roomNumber && (
-          <p>
-            <strong>Room (in-person):</strong> {doctor.roomNumber}
+      <div className="container narrow">
+        <div className="confirm-card">
+          <span className="confirm-tick"><Icon name="check" size={28} /></span>
+          <h2>You're booked!</h2>
+          <p className="muted">Dr. {doctor.name} · {prettyDate(confirmed.date)} · {formatTime(confirmed.startTime)}</p>
+          <div className="token-chip">
+            <span>Queue number</span>
+            <strong>{confirmed.queueNumber}</strong>
+          </div>
+          <p className="muted small">
+            {confirmed.mode === "online"
+              ? "A Zoom link is in My appointments and your email."
+              : confirmed.room ? `Room ${confirmed.room}` : "Visit the clinic at your slot time."}
           </p>
-        )}
-      </div>
-
-      <div className="card" style={{ marginTop: "1.25rem", maxWidth: 640 }}>
-        <h3 style={{ marginTop: 0 }}>Book an Appointment</h3>
-
-        <div className="form-group">
-          <label>Consultation type</label>
-          <div style={{ display: "flex", gap: "1.25rem" }}>
-            <label style={{ fontWeight: 400 }}>
-              <input
-                type="radio"
-                name="mode"
-                value="in-person"
-                checked={mode === "in-person"}
-                onChange={() => setMode("in-person")}
-              />{" "}
-              In-Person
-            </label>
-            <label style={{ fontWeight: 400 }}>
-              <input
-                type="radio"
-                name="mode"
-                value="online"
-                checked={mode === "online"}
-                onChange={() => setMode("online")}
-              />{" "}
-              Online (Zoom)
-            </label>
+          <div className="hero-actions center">
+            <Link to="/my-appointments" className="btn">View my appointments</Link>
+            {confirmed.date === todayLocal() && (
+              <Link to={`/queue/${confirmed._id}`} className="btn btn-secondary">Track queue</Link>
+            )}
+            <button className="btn btn-secondary" onClick={() => { setConfirmed(null); setSelected(null); }}>Book another</button>
           </div>
         </div>
+      </div>
+    );
+  }
 
-        <div className="form-group" style={{ maxWidth: 220 }}>
-          <label>Select a date</label>
-          <input type="date" value={date} min={todayISO()} onChange={(e) => setDate(e.target.value)} />
-        </div>
+  const isPatient = user?.role === "patient";
+  const picked = slots.find((s) => s._id === selected?._id);
 
-        {slotsLoading && <p>Loading slots...</p>}
-        {slotsError && <p className="error-text">{slotsError}</p>}
+  return (
+    <div className="container profile-layout">
+      <aside className="card profile-card">
+        <Avatar name={doctor.name} size={84} />
+        <h2>Dr. {doctor.name}</h2>
+        <span className="specialization">{doctor.specialization}</span>
+        {doctor.bio && <p className="doctor-bio">{doctor.bio}</p>}
+        <ul className="facts">
+          {doctor.experienceYears != null && <li><Icon name="user" size={16} /> {doctor.experienceYears} years experience</li>}
+          {doctor.consultationFee != null && <li><Icon name="info" size={16} /> Fee ₹{doctor.consultationFee}</li>}
+          {doctor.roomNumber && <li><Icon name="building" size={16} /> Room {doctor.roomNumber}</li>}
+        </ul>
+      </aside>
 
-        {slotData && !slotsLoading && !slotsError && (
+      <section className="booking">
+        <h2>Book an appointment</h2>
+
+        {availability === null && <div className="empty">This doctor hasn't set their availability yet.</div>}
+
+        {availability && (
           <>
-            {slotData.isOff ? (
-              <p style={{ color: "var(--muted)" }}>Not available on {slotData.day}s.</p>
-            ) : slotData.slots.length === 0 ? (
-              <p style={{ color: "var(--muted)" }}>No slots configured for this day yet.</p>
-            ) : (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginTop: "0.75rem" }}>
-                {slotData.slots.map((slot) => {
-                  const isBooked = slot.status === "booked";
-                  const isSubmitting = bookingSlotId === slot._id;
-                  return (
-                    <button
-                      key={slot._id}
-                      className={isBooked ? "btn btn-secondary" : "btn"}
-                      disabled={isBooked || isSubmitting}
-                      onClick={() => handleBook(slot)}
-                      style={{
-                        padding: "0.4rem 0.7rem",
-                        fontSize: "0.85rem",
-                        opacity: isBooked ? 0.5 : 1,
-                        cursor: isBooked ? "not-allowed" : "pointer",
-                      }}
-                      title={isBooked ? "Already booked" : `Book this slot (${mode})`}
-                    >
-                      {isSubmitting ? "Booking..." : slot.startTime}
-                    </button>
-                  );
-                })}
+            <div className="field-label">Visit type</div>
+            <div className="segmented">
+              <button className={mode === "in-person" ? "is-active" : ""} onClick={() => setMode("in-person")}>
+                <Icon name="building" size={16} /> In-person
+              </button>
+              <button className={mode === "online" ? "is-active" : ""} onClick={() => setMode("online")}>
+                <Icon name="video" size={16} /> Online (Zoom)
+              </button>
+            </div>
+
+            <div className="field-label">Choose a day</div>
+            <div className="date-strip">
+              {days.map((d) => (
+                <button
+                  key={d.iso}
+                  className={`date-chip ${date === d.iso ? "is-selected" : ""}`}
+                  disabled={isOff(d)}
+                  onClick={() => setDate(d.iso)}
+                  title={isOff(d) ? "Doctor is off" : ""}
+                >
+                  <span>{d.weekday}</span>
+                  <strong>{d.day}</strong>
+                  <span>{d.month}</span>
+                </button>
+              ))}
+            </div>
+
+            {sameDay && (
+              <div className="notice warn">
+                <Icon name="info" size={18} />
+                <span>You already have an appointment on this day at {formatTime(sameDay.startTime)}. Only one appointment per day can be booked — cancel it first to pick another time.</span>
               </div>
             )}
 
-            {bookingMessage && (
-              <p style={{ color: "var(--secondary)", marginTop: "1rem", fontWeight: 600 }}>{bookingMessage}</p>
-            )}
-            {bookingError && <p className="error-text" style={{ marginTop: "1rem" }}>{bookingError}</p>}
+            <div className="field-label">Choose a time</div>
+            {loadingSlots && <p className="muted">Loading slots...</p>}
+            {!loadingSlots && slotData?.isOff && <div className="empty">The doctor is off on this day.</div>}
+            {!loadingSlots && slotData && !slotData.isOff && slots.length === 0 && <div className="empty">No slots on this day.</div>}
 
-            {!user && (
-              <p style={{ color: "var(--muted)", fontSize: "0.85rem", marginTop: "1rem" }}>
-                <Link to="/login">Log in</Link> as a patient to book a slot.
-              </p>
-            )}
+            {groups.map((g) => (
+              <div key={g.label} className="slot-group">
+                <div className="slot-group-title">{g.label}</div>
+                <div className="slot-grid">
+                  {g.items.map((s) => {
+                    const free = s.status === "available";
+                    return (
+                      <button
+                        key={s._id}
+                        className={`slot-chip ${selected?._id === s._id ? "is-selected" : ""}`}
+                        disabled={!free || !!sameDay}
+                        onClick={() => setSelected(s)}
+                        aria-pressed={selected?._id === s._id}
+                      >
+                        {formatTime(s.startTime)}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+
+            {error && <p className="error-text">{error}</p>}
+
+            <div className="book-bar">
+              {picked ? (
+                <div className="book-summary">
+                  <strong>{prettyDate(date)} · {formatTime(picked.startTime)}</strong>
+                  <span>{mode === "online" ? "Online (Zoom)" : "In-person"}{doctor.consultationFee != null ? ` · ₹${doctor.consultationFee}` : ""}</span>
+                </div>
+              ) : (
+                <div className="book-summary muted">Select a time slot to continue</div>
+              )}
+
+              {!user ? (
+                <Link to="/login" className="btn">Log in to book</Link>
+              ) : !isPatient ? (
+                <span className="muted small">Only patients can book.</span>
+              ) : (
+                <button className="btn" disabled={!picked || booking || !!sameDay} onClick={handleBook}>
+                  {booking ? "Booking..." : "Book your slot"}
+                </button>
+              )}
+            </div>
           </>
         )}
-      </div>
+      </section>
     </div>
   );
 }

@@ -8,14 +8,21 @@ import { buildBookingEmail, buildCancellationEmail } from "../utils/emailTemplat
 
 const VALID_MODES = ["online", "in-person"];
 
-// Generates the next queue number for a given doctor+date, e.g. "A01", "A02"...
-const generateQueueNumber = async (doctorId, date) => {
-  const count = await Appointment.countDocuments({
-    doctor: doctorId,
-    date,
-    status: { $ne: "cancelled" },
+// A patient may hold only ONE of these on any given day (with any doctor).
+// Cancelled and no-show appointments don't count, so cancelling frees the day.
+const ACTIVE_STATUSES = ["booked", "waiting", "in-consultation"];
+
+// Queue number = the slot's position in that doctor's day (A01 = first slot, A02 = second...).
+// Because the slot itself is unique per booking, two patients can never get the same number,
+// and the numbers always follow appointment-time order, which is the order the queue is served in.
+// (Numbers can skip when a slot is unbooked, e.g. A01, A03, A04. That is expected.)
+const queueNumberForSlot = async (slot) => {
+  const position = await Slot.countDocuments({
+    doctor: slot.doctor,
+    date: slot.date,
+    startTime: { $lte: slot.startTime }, // "HH:MM" is zero-padded, so string comparison is time order
   });
-  return "A" + String(count + 1).padStart(2, "0");
+  return "A" + String(position).padStart(2, "0");
 };
 
 // Sends an email in the background. sendEmail() never throws, so this can never
@@ -44,6 +51,24 @@ export const bookAppointment = async (req, res) => {
       return res.status(404).json({ message: "Doctor not found" });
     }
 
+    // One appointment per patient per day. Checked BEFORE the slot is claimed,
+    // so a refused request never touches the slot.
+    const wantedSlot = await Slot.findOne({ _id: slotId, doctor: doctorId });
+    if (!wantedSlot) {
+      return res.status(404).json({ message: "That time slot doesn't exist." });
+    }
+    const sameDay = await Appointment.findOne({
+      patient: req.user.id,
+      date: wantedSlot.date,
+      status: { $in: ACTIVE_STATUSES },
+    }).populate("doctor", "name");
+    if (sameDay) {
+      const withDoctor = sameDay.doctor?.name ? ` with Dr. ${sameDay.doctor.name}` : "";
+      return res.status(409).json({
+        message: `You already have an appointment on ${wantedSlot.date}${withDoctor} at ${sameDay.startTime}. Only one appointment per day can be booked. Cancel it first if you want a different time.`,
+      });
+    }
+
     // Atomic claim — only succeeds if the slot is still available (prevents double-booking)
     const claimedSlot = await Slot.findOneAndUpdate(
       { _id: slotId, doctor: doctorId, status: "available" },
@@ -57,7 +82,7 @@ export const bookAppointment = async (req, res) => {
 
     let appointment;
     try {
-      const queueNumber = await generateQueueNumber(doctorId, claimedSlot.date);
+      const queueNumber = await queueNumberForSlot(claimedSlot);
 
       const details = {
         patient: req.user.id,
@@ -94,7 +119,7 @@ export const bookAppointment = async (req, res) => {
       throw creationError;
     }
 
-    // Confirmation email (Stage 7). Booking is already saved — email problems can't undo it.
+    // Confirmation email. Booking is already saved — email problems can't undo it.
     const patient = await User.findById(req.user.id).select("name email");
     if (patient) {
       sendInBackground(buildBookingEmail({ appointment, doctor, patient }));
@@ -141,6 +166,8 @@ export const getDoctorAppointments = async (req, res) => {
 
 // @route  PUT /api/appointments/:id/cancel
 // @access Private/Patient (must own the appointment)
+// Only possible while the appointment is still "booked". Once the patient has
+// checked in (or been seen / marked no-show) it is part of the live queue.
 export const cancelAppointment = async (req, res) => {
   try {
     const appointment = await Appointment.findById(req.params.id);
@@ -156,22 +183,32 @@ export const cancelAppointment = async (req, res) => {
       return res.status(400).json({ message: "This appointment is already cancelled" });
     }
 
-    appointment.status = "cancelled";
-    await appointment.save();
+    // Atomic: cancels only if it is still "booked", so it can't race with a check-in
+    const cancelled = await Appointment.findOneAndUpdate(
+      { _id: appointment._id, status: "booked" },
+      { $set: { status: "cancelled" } },
+      { new: true }
+    );
 
-    await Slot.findByIdAndUpdate(appointment.slot, { $set: { status: "available" } });
+    if (!cancelled) {
+      return res.status(400).json({
+        message: `This appointment can no longer be cancelled because it is already ${appointment.status}.`,
+      });
+    }
 
-    // Cancellation email (Stage 7)
+    await Slot.findByIdAndUpdate(cancelled.slot, { $set: { status: "available" } });
+
+    // Cancellation email
     const [doctor, patient] = await Promise.all([
-      User.findById(appointment.doctor).select("name"),
-      User.findById(appointment.patient).select("name email"),
+      User.findById(cancelled.doctor).select("name"),
+      User.findById(cancelled.patient).select("name email"),
     ]);
     if (doctor && patient) {
-      sendInBackground(buildCancellationEmail({ appointment, doctor, patient }));
+      sendInBackground(buildCancellationEmail({ appointment: cancelled, doctor, patient }));
     }
 
     // Don't hand the Zoom host link back to the patient
-    const response = appointment.toObject();
+    const response = cancelled.toObject();
     delete response.meetingStartUrl;
     res.json({ message: "Appointment cancelled", appointment: response });
   } catch (error) {
