@@ -28,7 +28,12 @@ function Navbar() {
             <NavLink to="/my-availability">My availability</NavLink>
           </>
         )}
-        {user?.role === "admin" && <NavLink to="/admin/doctors">Manage doctors</NavLink>}
+        {user?.role === "admin" && (
+          <>
+            <NavLink to="/admin/dashboard">Dashboard</NavLink>
+            <NavLink to="/admin/doctors">Manage doctors</NavLink>
+          </>
+        )}
 
         {user ? (
           <>

@@ -8,6 +8,7 @@ import availabilityRoutes from "./routes/availabilityRoutes.js";
 import slotRoutes from "./routes/slotRoutes.js";
 import appointmentRoutes from "./routes/appointmentRoutes.js";
 import queueRoutes from "./routes/queueRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
 
 dotenv.config();
 
@@ -28,6 +29,7 @@ app.use("/api/availability", availabilityRoutes);
 app.use("/api/slots", slotRoutes);
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/queue", queueRoutes);
+app.use("/api/admin", adminRoutes);
 
 const PORT = process.env.PORT || 5000;
 

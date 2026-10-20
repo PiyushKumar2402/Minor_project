@@ -12,6 +12,7 @@ import MyAppointments from "./pages/MyAppointments.jsx";
 import QueueStatus from "./pages/QueueStatus.jsx";
 import DoctorQueue from "./pages/DoctorQueue.jsx";
 import DoctorDashboard from "./pages/DoctorDashboard.jsx";
+import AdminDashboard from "./pages/AdminDashboard.jsx";
 import "./styles/global.css";
 
 function Home() {
@@ -20,7 +21,7 @@ function Home() {
 
   const cta =
     user?.role === "doctor" ? { to: "/doctor/dashboard", text: "Open my dashboard" }
-    : user?.role === "admin" ? { to: "/admin/doctors", text: "Manage doctors" }
+    : user?.role === "admin" ? { to: "/admin/dashboard", text: "Open admin dashboard" }
     : { to: "/doctors", text: "Find a doctor" };
 
   return (
@@ -66,6 +67,7 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/doctors" element={<Doctors />} />
           <Route path="/doctors/:id" element={<DoctorProfile />} />
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/doctors" element={<AdminDoctors />} />
           <Route path="/my-availability" element={<DoctorAvailability />} />
           <Route path="/my-appointments" element={<MyAppointments />} />
