@@ -23,6 +23,7 @@ function Navbar() {
         {user?.role === "patient" && <NavLink to="/my-appointments">My appointments</NavLink>}
         {user?.role === "doctor" && (
           <>
+            <NavLink to="/doctor/dashboard">Dashboard</NavLink>
             <NavLink to="/doctor/queue">Today's queue</NavLink>
             <NavLink to="/my-availability">My availability</NavLink>
           </>

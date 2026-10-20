@@ -1,0 +1,13 @@
+.dash-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem; flex-wrap: wrap; }
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.75rem; margin-bottom: 1.25rem; }
+.stat { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); padding: 0.9rem 1rem; display: flex; flex-direction: column; box-shadow: var(--shadow); }
+.stat span { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.stat strong { font-family: var(--font-head); font-size: 2rem; color: var(--dark); line-height: 1.2; }
+.stat.hot { background: var(--dark); border-color: var(--dark); }
+.stat.hot span { color: #b9d6db; }
+.stat.hot strong { color: var(--accent); }
+.now-card { display: flex; gap: 2.5rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+.now-card h3 { margin: 0.1rem 0 0; }
+.dash-toolbar { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.dash-toolbar .search-box { flex: 1; min-width: 180px; }
+.dash-toolbar .search-box input { padding: 0.55rem 0; }
