@@ -5,6 +5,10 @@ import { getMyAppointments, cancelAppointment } from "../api/appointments.js";
 import { todayLocal, prettyDate, formatTime } from "../utils/date.js";
 import StatusBadge from "../components/StatusBadge.jsx";
 import Icon from "../components/Icon.jsx";
+import ReschedulePanel from "../components/ReschedulePanel.jsx";
+import ReviewPanel from "../components/ReviewPanel.jsx";
+import { getMyReviewedIds } from "../api/reviews.js";
+import "../styles/reschedule.css";
 
 const errMsg = (e, fallback) => e?.response?.data?.message || e?.message || fallback;
 
@@ -14,6 +18,13 @@ function MyAppointments() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
+  const [moving, setMoving] = useState(""); // id of the appointment being rescheduled
+  const [rating, setRating] = useState(""); // id of the appointment being reviewed
+  const [reviewed, setReviewed] = useState(new Set());
+
+  useEffect(() => {
+    if (token) getMyReviewedIds(token).then((ids) => setReviewed(new Set(ids))).catch(() => {});
+  }, [token]);
 
   const load = () =>
     getMyAppointments(token)
@@ -49,6 +60,7 @@ function MyAppointments() {
   const past = items.filter((a) => !upcoming.includes(a));
 
   const Card = ({ a }) => (
+    <div className={`appt-wrap ${moving === a._id || rating === a._id ? "is-open" : ""}`}>
     <div className="appt-card">
       <div className="appt-date">
         <strong>{a.date.slice(8)}</strong>
@@ -68,11 +80,19 @@ function MyAppointments() {
         </div>
       </div>
       <div className="appt-actions">
+        {a.status === "completed" && (reviewed.has(a._id)
+          ? <span className="tag">Reviewed</span>
+          : <button className="btn btn-sm" onClick={() => { setMoving(""); setRating(rating === a._id ? "" : a._id); }}>Rate your visit</button>)}
         {a.mode === "online" && a.meetingJoinUrl && ["booked", "waiting", "in-consultation"].includes(a.status) && (
           <a className="btn btn-sm" href={a.meetingJoinUrl} target="_blank" rel="noreferrer">Join Zoom</a>
         )}
         {a.date === today && ["booked", "waiting", "in-consultation"].includes(a.status) && (
           <Link className="btn btn-secondary btn-sm" to={`/queue/${a._id}`}>Track queue</Link>
+        )}
+        {a.status === "booked" && (
+          <button className="btn btn-secondary btn-sm" onClick={() => setMoving(moving === a._id ? "" : a._id)}>
+            {moving === a._id ? "Close" : "Reschedule"}
+          </button>
         )}
         {a.status === "booked" && (
           <button className="btn btn-danger btn-sm" disabled={busy === a._id} onClick={() => handleCancel(a)}>
@@ -81,13 +101,30 @@ function MyAppointments() {
         )}
       </div>
     </div>
+    {rating === a._id && (
+      <ReviewPanel
+        appointment={a}
+        token={token}
+        onClose={() => setRating("")}
+        onDone={() => { setRating(""); setReviewed(new Set([...reviewed, a._id])); }}
+      />
+    )}
+    {moving === a._id && (
+      <ReschedulePanel
+        appointment={a}
+        token={token}
+        onClose={() => setMoving("")}
+        onDone={() => { setMoving(""); load(); }}
+      />
+    )}
+    </div>
   );
 
   return (
     <div className="container">
       <div className="page-header">
         <h1>My appointments</h1>
-        <p className="subtitle">One appointment per day. Cancel is available until you check in.</p>
+        <p className="subtitle">One appointment per day. Reschedule or cancel until you check in.</p>
       </div>
       {loading && <p className="muted">Loading...</p>}
       {error && <p className="error-text">{error}</p>}

@@ -2,9 +2,11 @@ import Appointment from "../models/Appointment.js";
 import Slot from "../models/Slot.js";
 import User from "../models/User.js";
 import { createZoomMeeting } from "../utils/zoom.js";
+import { todayInClinic, nowTimeInClinic } from "../utils/clinicDate.js";
 import { timeToMinutes } from "../utils/slotGenerator.js";
 import { sendEmail } from "../utils/mailer.js";
-import { buildBookingEmail, buildCancellationEmail } from "../utils/emailTemplates.js";
+import { buildBookingEmail, buildCancellationEmail, formatDate, formatTime } from "../utils/emailTemplates.js";
+import { buildDoctorNewAppointmentEmail, buildDoctorCancellationEmail, buildDoctorRescheduleEmail } from "../utils/doctorEmails.js";
 
 const VALID_MODES = ["online", "in-person"];
 
@@ -38,6 +40,7 @@ export const bookAppointment = async (req, res) => {
   try {
     const { doctorId, slotId } = req.body;
     const mode = req.body.mode || "in-person";
+    const reason = String(req.body.reason || "").trim().slice(0, 500);
 
     if (!doctorId || !slotId) {
       return res.status(400).json({ message: "doctorId and slotId are required" });
@@ -56,6 +59,11 @@ export const bookAppointment = async (req, res) => {
     const wantedSlot = await Slot.findOne({ _id: slotId, doctor: doctorId });
     if (!wantedSlot) {
       return res.status(404).json({ message: "That time slot doesn't exist." });
+    }
+    // Can't book a time that has already passed (clinic's own date and clock)
+    const clinicToday = todayInClinic();
+    if (wantedSlot.date < clinicToday || (wantedSlot.date === clinicToday && wantedSlot.startTime < nowTimeInClinic())) {
+      return res.status(400).json({ message: "That time has already passed. Please pick a later slot." });
     }
     const sameDay = await Appointment.findOne({
       patient: req.user.id,
@@ -93,6 +101,7 @@ export const bookAppointment = async (req, res) => {
         endTime: claimedSlot.endTime,
         queueNumber,
         mode,
+        reason,
       };
 
       if (mode === "in-person") {
@@ -120,9 +129,11 @@ export const bookAppointment = async (req, res) => {
     }
 
     // Confirmation email. Booking is already saved — email problems can't undo it.
-    const patient = await User.findById(req.user.id).select("name email");
+    const patient = await User.findById(req.user.id).select("name email phone");
     if (patient) {
       sendInBackground(buildBookingEmail({ appointment, doctor, patient }));
+      // ...and tell the doctor
+      sendInBackground(buildDoctorNewAppointmentEmail({ appointment, doctor, patient }));
     }
 
     // The host (start) link is for the doctor only — never send it to the patient
@@ -200,11 +211,12 @@ export const cancelAppointment = async (req, res) => {
 
     // Cancellation email
     const [doctor, patient] = await Promise.all([
-      User.findById(cancelled.doctor).select("name"),
-      User.findById(cancelled.patient).select("name email"),
+      User.findById(cancelled.doctor).select("name email"),
+      User.findById(cancelled.patient).select("name email phone"),
     ]);
     if (doctor && patient) {
       sendInBackground(buildCancellationEmail({ appointment: cancelled, doctor, patient }));
+      sendInBackground(buildDoctorCancellationEmail({ appointment: cancelled, doctor, patient }));
     }
 
     // Don't hand the Zoom host link back to the patient
@@ -213,5 +225,116 @@ export const cancelAppointment = async (req, res) => {
     res.json({ message: "Appointment cancelled", appointment: response });
   } catch (error) {
     res.status(500).json({ message: "Could not cancel appointment", error: error.message });
+  }
+};
+
+// @route  PUT /api/appointments/:id/reschedule
+// @access Private/Patient (must own the appointment)
+// Body: { slotId } - a different slot with the SAME doctor.
+// Only while the appointment is still "booked". Keeps the visit mode (online gets a new Zoom meeting).
+export const rescheduleAppointment = async (req, res) => {
+  try {
+    const { slotId } = req.body;
+    if (!slotId) return res.status(400).json({ message: "slotId is required" });
+
+    const appointment = await Appointment.findById(req.params.id);
+    if (!appointment) return res.status(404).json({ message: "Appointment not found" });
+    if (appointment.patient.toString() !== req.user.id.toString()) {
+      return res.status(403).json({ message: "You can only reschedule your own appointments" });
+    }
+    if (appointment.status !== "booked") {
+      return res.status(400).json({
+        message: `Only appointments that are still "booked" can be rescheduled (this one is ${appointment.status}).`,
+      });
+    }
+    if (appointment.slot.toString() === String(slotId)) {
+      return res.status(400).json({ message: "That is already your current time slot." });
+    }
+
+    const before = { date: appointment.date, startTime: appointment.startTime }; // old time, for the doctor's email
+    const newSlot = await Slot.findOne({ _id: slotId, doctor: appointment.doctor });
+    if (!newSlot) return res.status(404).json({ message: "That time slot doesn't exist for this doctor." });
+
+    const clinicToday = todayInClinic();
+    if (newSlot.date < clinicToday || (newSlot.date === clinicToday && newSlot.startTime < nowTimeInClinic())) {
+      return res.status(400).json({ message: "That time has already passed. Please pick a later slot." });
+    }
+
+    // One appointment per day: the appointment being moved doesn't count against itself
+    const sameDay = (
+      await Appointment.find({ patient: req.user.id, date: newSlot.date, status: { $in: ACTIVE_STATUSES } })
+    ).find((a) => a._id.toString() !== appointment._id.toString());
+    if (sameDay) {
+      return res.status(409).json({
+        message: `You already have another appointment on ${newSlot.date} at ${sameDay.startTime}. Only one appointment per day can be booked.`,
+      });
+    }
+
+    // Atomic claim of the new slot
+    const claimed = await Slot.findOneAndUpdate(
+      { _id: slotId, doctor: appointment.doctor, status: "available" },
+      { $set: { status: "booked" } },
+      { new: true }
+    );
+    if (!claimed) {
+      return res.status(409).json({ message: "This slot was just booked by someone else. Please pick another." });
+    }
+
+    const oldSlotId = appointment.slot;
+    let updated;
+    try {
+      const doctor = await User.findById(appointment.doctor).select("name email roomNumber specialization");
+      const changes = {
+        slot: claimed._id,
+        date: claimed.date,
+        startTime: claimed.startTime,
+        endTime: claimed.endTime,
+        queueNumber: await queueNumberForSlot(claimed),
+        reminderSentAt: null,
+      };
+      if (appointment.mode === "online") {
+        const meeting = await createZoomMeeting({
+          topic: `Consultation with Dr. ${doctor?.name}`,
+          date: claimed.date,
+          startTime: claimed.startTime,
+          durationMinutes: timeToMinutes(claimed.endTime) - timeToMinutes(claimed.startTime),
+        });
+        changes.meetingId = meeting.meetingId;
+        changes.meetingJoinUrl = meeting.joinUrl;
+        changes.meetingStartUrl = meeting.startUrl;
+        changes.meetingPassword = meeting.password;
+        changes.meetingIsDemo = meeting.isDemo;
+      }
+
+      // Only succeeds if it is still "booked" on the same slot (can't race with a check-in or cancel)
+      updated = await Appointment.findOneAndUpdate(
+        { _id: appointment._id, status: "booked", slot: oldSlotId },
+        { $set: changes },
+        { new: true }
+      );
+      if (!updated) {
+        await Slot.findByIdAndUpdate(claimed._id, { $set: { status: "available" } });
+        return res.status(409).json({ message: "This appointment changed while you were rescheduling. Please refresh and try again." });
+      }
+
+      const patient = await User.findById(req.user.id).select("name email phone");
+      if (patient && doctor) {
+        const mail = buildBookingEmail({ appointment: updated, doctor, patient });
+        sendInBackground({ ...mail, subject: `Appointment Rescheduled - ${formatDate(updated.date)}, ${formatTime(updated.startTime)}` });
+        sendInBackground(buildDoctorRescheduleEmail({ appointment: updated, doctor, patient, before }));
+      }
+    } catch (err) {
+      await Slot.findByIdAndUpdate(claimed._id, { $set: { status: "available" } });
+      throw err;
+    }
+
+    // Release the old slot only after the move has succeeded
+    await Slot.findByIdAndUpdate(oldSlotId, { $set: { status: "available" } });
+
+    const response = updated.toObject();
+    delete response.meetingStartUrl;
+    res.json({ message: "Appointment rescheduled", appointment: response });
+  } catch (error) {
+    res.status(500).json({ message: `Could not reschedule: ${error.message}` });
   }
 };

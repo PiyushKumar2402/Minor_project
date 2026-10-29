@@ -4,7 +4,8 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { getDoctorById } from "../api/doctors.js";
 import { getAvailabilityByDoctorId } from "../api/availability.js";
 import { getSlotsForDate } from "../api/slots.js";
-import { bookAppointment, getMyAppointments } from "../api/appointments.js";
+import { getMyAppointments } from "../api/appointments.js";
+import { bookWithReason } from "../api/booking.js";
 import { nextDays, todayLocal, prettyDate, formatTime } from "../utils/date.js";
 import Avatar from "../components/Avatar.jsx";
 import Icon from "../components/Icon.jsx";
@@ -24,6 +25,7 @@ function DoctorProfile() {
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [selected, setSelected] = useState(null);
   const [mode, setMode] = useState("in-person");
+  const [reason, setReason] = useState("");
   const [booking, setBooking] = useState(false);
   const [error, setError] = useState("");
   const [confirmed, setConfirmed] = useState(null);
@@ -67,6 +69,8 @@ function DoctorProfile() {
       .finally(() => setLoadingSlots(false));
   }, [id, date]);
 
+  const nowHHMM = new Date().toTimeString().slice(0, 5);
+  const isPast = (s) => date === todayLocal() && s.startTime < nowHHMM;
   const sameDay = mine.find((a) => a.date === date && ACTIVE.includes(a.status));
   const slots = slotData?.slots || [];
   const groups = [
@@ -80,8 +84,9 @@ function DoctorProfile() {
     setBooking(true);
     setError("");
     try {
-      const appt = await bookAppointment(id, selected._id, mode, token);
+      const appt = await bookWithReason(id, selected._id, mode, reason.trim(), token);
       setConfirmed(appt);
+      setReason("");
       loadMine();
     } catch (e) {
       setError(errMsg(e, "Could not book this slot"));
@@ -128,7 +133,7 @@ function DoctorProfile() {
   return (
     <div className="container profile-layout">
       <aside className="card profile-card">
-        <Avatar name={doctor.name} size={84} />
+        <Avatar name={doctor.name} doctorId={doctor._id} size={84} />
         <h2>Dr. {doctor.name}</h2>
         <span className="specialization">{doctor.specialization}</span>
         {doctor.bio && <p className="doctor-bio">{doctor.bio}</p>}
@@ -195,7 +200,7 @@ function DoctorProfile() {
                       <button
                         key={s._id}
                         className={`slot-chip ${selected?._id === s._id ? "is-selected" : ""}`}
-                        disabled={!free || !!sameDay}
+                        disabled={!free || !!sameDay || isPast(s)}
                         onClick={() => setSelected(s)}
                         aria-pressed={selected?._id === s._id}
                       >
@@ -206,6 +211,20 @@ function DoctorProfile() {
                 </div>
               </div>
             ))}
+
+            {user?.role === "patient" && (
+              <>
+                <div className="field-label">Reason for visit (optional)</div>
+                <textarea
+                  rows="3"
+                  maxLength={500}
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="e.g. chest pain since two days, follow-up of last report"
+                  style={{ width: "100%", resize: "vertical" }}
+                />
+              </>
+            )}
 
             {error && <p className="error-text">{error}</p>}
 

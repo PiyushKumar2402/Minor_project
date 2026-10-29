@@ -1,0 +1,51 @@
+/* about + numbers */
+.about { background: #eef2f8; margin-top: 3rem; }
+.about-in { display: grid; grid-template-columns: 1.3fr 1fr; gap: 4rem; align-items: center; padding-top: 3.5rem; padding-bottom: 3.5rem; }
+.about h2 { font-size: 2rem; }
+.about p { color: var(--text); line-height: 1.75; margin: 0 0 1rem; }
+.about-link { font-weight: 700; color: var(--primary); text-decoration: none; border-bottom: 2px solid var(--accent); padding-bottom: 2px; }
+.numgrid { display: grid; grid-template-columns: 1fr 1fr; }
+.numgrid > div { padding: 2rem 1rem; text-align: center; }
+.numgrid > div:nth-child(odd) { border-right: 1px solid #b9c6dc; }
+.numgrid > div:nth-child(-n+2) { border-bottom: 1px solid #b9c6dc; }
+.numgrid strong { display: block; font: 600 3rem var(--font-head); color: var(--primary); line-height: 1.1; }
+.numgrid span { color: var(--muted); font-weight: 600; }
+
+/* doctor cards */
+.dgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1.2rem; }
+.dcard { background: #fff; border: 1px solid var(--border); border-radius: 18px; padding: 14px 14px 18px; display: flex; flex-direction: column; gap: 0.3rem; }
+.dcard h3 { margin: 0.8rem 0 0; font-size: 1.2rem; font-family: var(--font-head); color: var(--dark); }
+.dcard-spec { color: var(--primary); font-weight: 700; font-size: 0.92rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.dcard-meta { display: flex; flex-direction: column; color: var(--muted); font-size: 0.92rem; margin-bottom: 0.7rem; }
+.dcard-btn { width: 100%; }
+.dcard-link { text-align: center; font-weight: 600; color: var(--primary); text-decoration: none; margin-top: 0.4rem; }
+.dcard-link:hover { text-decoration: underline; }
+.dphoto { aspect-ratio: 1 / 1; border-radius: 12px; overflow: hidden; background: var(--secondary); }
+.dphoto img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
+.dphoto-fallback { display: grid; place-items: center; font: 600 3.4rem var(--font-head); }
+
+/* FAQ */
+.faq-wrap { max-width: 860px; }
+.faq details { border-bottom: 1px solid var(--border); }
+.faq summary { cursor: pointer; list-style: none; padding: 1.1rem 2.5rem 1.1rem 0; font-weight: 600; color: var(--dark); position: relative; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; position: absolute; right: 0.4rem; top: 50%; transform: translateY(-50%); width: 26px; height: 26px; border: 1.5px solid var(--muted); border-radius: 50%; display: grid; place-items: center; line-height: 1; color: var(--muted); font-weight: 400; }
+.faq details[open] summary::after { content: "\2212"; color: var(--primary); border-color: var(--primary); }
+.faq details p { margin: 0; padding: 0 2.5rem 1.2rem 0; color: var(--muted); line-height: 1.7; }
+
+/* directions */
+.dir-grid { display: grid; grid-template-columns: 1fr 1.4fr; gap: 1.5rem; align-items: stretch; }
+.dir-card { background: #eef2f8; border-radius: 18px; padding: 1.8rem; }
+.dir-card h2 { font-size: 1.7rem; }
+.dir-line { margin: 0 0 0.9rem; display: flex; flex-direction: column; }
+.dir-line strong { font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.dir-map { width: 100%; height: 220px; border: 0; border-radius: 12px; margin: 0.6rem 0 0.9rem; display: block; }
+.hospital-photo { width: 100%; height: 100%; min-height: 320px; object-fit: cover; border-radius: 18px; display: block; }
+.sample-note { margin: 1rem 0 0; font-size: 0.85rem; color: var(--muted); text-align: center; }
+
+@media (max-width: 860px) {
+  .about-in, .dir-grid { grid-template-columns: 1fr; gap: 2rem; }
+}
+
+.nav-actions .avatar { flex: none; }
+.page-header .avatar { margin-bottom: 0.75rem; box-shadow: 0 0 0 3px #fff, 0 0 0 4px var(--border); }

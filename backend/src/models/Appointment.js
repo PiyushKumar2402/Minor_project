@@ -29,7 +29,6 @@ const appointmentSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Slot",
       required: true,
-      unique: true,
     },
     date: { type: String, required: true }, // "YYYY-MM-DD"
     startTime: { type: String, required: true },
@@ -43,6 +42,7 @@ const appointmentSchema = new mongoose.Schema(
       default: "in-person",
     },
     room: { type: String, default: "" },
+    reason: { type: String, default: "", maxlength: 500 }, // reason for visit, given by the patient
     meetingId: { type: String, default: "" },
     meetingJoinUrl: { type: String, default: "" },
     meetingStartUrl: { type: String, default: "" }, // host link, doctor only
@@ -58,12 +58,26 @@ const appointmentSchema = new mongoose.Schema(
     checkedInAt: { type: Date, default: null },
     consultationStartedAt: { type: Date, default: null },
     completedAt: { type: Date, default: null },
+
+    // ----- Reminders (Stage 11) -----
+    reminderSentAt: { type: Date, default: null },
   },
   { timestamps: true }
 );
 
 // Speeds up the queue lookups (one doctor, one day, by status)
 appointmentSchema.index({ doctor: 1, date: 1, status: 1 });
+
+// One appointment per slot, but ONLY among appointments that still hold the slot.
+// A cancelled appointment keeps its slot id for history, and the slot can then be
+// booked again by someone else, so cancelled ones must not count.
+appointmentSchema.index(
+  { slot: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { status: { $in: ["booked", "waiting", "in-consultation", "completed", "no-show"] } },
+  }
+);
 
 const Appointment = mongoose.model("Appointment", appointmentSchema);
 

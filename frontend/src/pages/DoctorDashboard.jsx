@@ -136,6 +136,7 @@ function DoctorDashboard() {
             <div className="muted small">
               {prettyDate(a.date)} · {formatTime(a.startTime)}{a.patient?.phone ? ` · ${a.patient.phone}` : ""}
             </div>
+            {a.reason && <div className="small" style={{ marginTop: "0.35rem" }}><strong>Reason:</strong> {a.reason}</div>}
             <div className="appt-tags">
               <span className="tag"><Icon name={a.mode === "online" ? "video" : "building"} size={14} /> {a.mode === "online" ? "Online" : "In-person"}</span>
               <span className="tag token">Queue {a.queueNumber}</span>
