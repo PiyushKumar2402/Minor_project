@@ -12,6 +12,7 @@ import adminRoutes from "./routes/adminRoutes.js";
 import enquiryRoutes from "./routes/enquiryRoutes.js";
 import rescheduleRoutes from "./routes/rescheduleRoutes.js";
 import reviewRoutes from "./routes/reviewRoutes.js";
+import prescriptionRoutes from "./routes/prescriptionRoutes.js";
 import photoRoutes from "./routes/photoRoutes.js";
 import publicRoutes from "./routes/publicRoutes.js";
 import { startScheduler } from "./utils/scheduler.js";
@@ -39,6 +40,7 @@ app.use("/api/queue", queueRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/enquiries", enquiryRoutes);
 app.use("/api/reviews", reviewRoutes);
+app.use("/api/prescriptions", prescriptionRoutes);
 app.use("/api/photos", photoRoutes);
 app.use("/api/public", publicRoutes);
 
