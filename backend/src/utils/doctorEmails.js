@@ -7,7 +7,26 @@ const esc = (v) =>
 
 const hospital = () => process.env.HOSPITAL_NAME || "ABC Hospital";
 
-const wrap = ({ heading, intro, rows, note }) => `
+// Zoom button for online visits: the host link starts the meeting as the doctor.
+const zoomBlock = (appointment) => {
+  if (appointment.mode !== "online" || !appointment.meetingStartUrl) return "";
+  const join = appointment.meetingJoinUrl
+    ? `<p style="margin:10px 0 0 0;color:#66758c;font-size:12px;">Patient join link: <a href="${esc(appointment.meetingJoinUrl)}" style="color:#1a4480;">${esc(appointment.meetingJoinUrl)}</a></p>`
+    : "";
+  return `<div style="margin:18px 0 0 0;">
+    <a href="${esc(appointment.meetingStartUrl)}" style="display:inline-block;background:#1a4480;color:#ffffff;text-decoration:none;padding:11px 20px;border-radius:8px;font-weight:600;">Start Zoom meeting</a>
+    ${join}
+    <p style="margin:10px 0 0 0;color:#66758c;font-size:12px;">This is your host link. Please do not share it. You can also start the meeting from your dashboard.</p>
+  </div>`;
+};
+
+const zoomText = (appointment) =>
+  appointment.mode === "online" && appointment.meetingStartUrl
+    ? `\n\nStart Zoom meeting (host link, do not share): ${appointment.meetingStartUrl}` +
+      (appointment.meetingJoinUrl ? `\nPatient join link: ${appointment.meetingJoinUrl}` : "")
+    : "";
+
+const wrap = ({ heading, intro, rows, note, extra = "" }) => `
 <div style="font-family:Segoe UI,Arial,sans-serif;background:#f4f6fa;padding:24px;">
   <table role="presentation" width="100%" style="max-width:560px;margin:0 auto;background:#fff;border:1px solid #dde3ec;border-radius:10px;overflow:hidden;">
     <tr><td style="background:#1a4480;color:#fff;padding:18px 24px;font-size:18px;font-weight:600;">${esc(hospital())}</td></tr>
@@ -17,6 +36,7 @@ const wrap = ({ heading, intro, rows, note }) => `
       <table role="presentation" width="100%" style="border-collapse:collapse;">
         ${rows.map(([l, v]) => `<tr><td style="padding:8px 0;color:#66758c;width:150px;border-bottom:1px solid #eef1f6;vertical-align:top;">${esc(l)}</td><td style="padding:8px 0;color:#0f2140;font-weight:600;border-bottom:1px solid #eef1f6;">${esc(v)}</td></tr>`).join("")}
       </table>
+      ${extra}
       ${note ? `<p style="margin:18px 0 0 0;color:#66758c;font-size:12px;">${esc(note)}</p>` : ""}
     </td></tr>
   </table>
@@ -55,9 +75,10 @@ export const buildDoctorNewAppointmentEmail = ({ appointment, doctor, patient })
       heading,
       intro: `Hello Dr. ${esc(doctor.name)}, you have a new appointment with <b>${esc(patient.name)}</b>.`,
       rows,
-      note: appointment.mode === "online" ? "Start the Zoom meeting from your dashboard when it is time." : "",
+      extra: zoomBlock(appointment),
+      note: appointment.mode === "online" && !appointment.meetingStartUrl ? "Start the Zoom meeting from your dashboard when it is time." : "",
     }),
-    text: text(`${heading}\n\nHello Dr. ${doctor.name}, you have a new appointment with ${patient.name}.`, rows),
+    text: text(`${heading}\n\nHello Dr. ${doctor.name}, you have a new appointment with ${patient.name}.`, rows) + zoomText(appointment),
   };
 };
 
@@ -94,7 +115,8 @@ export const buildDoctorRescheduleEmail = ({ appointment, doctor, patient, befor
       heading: "Appointment rescheduled",
       intro: `Hello Dr. ${esc(doctor.name)}, <b>${esc(patient.name)}</b> has moved their appointment to a new time.`,
       rows,
+      extra: zoomBlock(appointment),
     }),
-    text: text(`Appointment rescheduled\n\nHello Dr. ${doctor.name}, ${patient.name} has moved their appointment.`, rows),
+    text: text(`Appointment rescheduled\n\nHello Dr. ${doctor.name}, ${patient.name} has moved their appointment.`, rows) + zoomText(appointment),
   };
 };
