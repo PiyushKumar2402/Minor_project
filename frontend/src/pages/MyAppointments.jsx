@@ -8,6 +8,7 @@ import Icon from "../components/Icon.jsx";
 import ReschedulePanel from "../components/ReschedulePanel.jsx";
 import ReviewPanel from "../components/ReviewPanel.jsx";
 import { getMyReviewedIds } from "../api/reviews.js";
+import { getPrescribedIds, downloadPrescriptionPdf } from "../api/prescriptions.js";
 import "../styles/reschedule.css";
 
 const errMsg = (e, fallback) => e?.response?.data?.message || e?.message || fallback;
@@ -21,6 +22,24 @@ function MyAppointments() {
   const [moving, setMoving] = useState(""); // id of the appointment being rescheduled
   const [rating, setRating] = useState(""); // id of the appointment being reviewed
   const [reviewed, setReviewed] = useState(new Set());
+  const [prescribed, setPrescribed] = useState(new Set());
+  const [pdfBusy, setPdfBusy] = useState("");
+
+  useEffect(() => {
+    if (token) getPrescribedIds(token).then((ids) => setPrescribed(new Set(ids))).catch(() => {});
+  }, [token]);
+
+  const downloadRx = async (a) => {
+    setPdfBusy(a._id);
+    setError("");
+    try {
+      await downloadPrescriptionPdf(a._id, token, `prescription-${a.date}`);
+    } catch {
+      setError("Could not download the prescription. Please try again.");
+    } finally {
+      setPdfBusy("");
+    }
+  };
 
   useEffect(() => {
     if (token) getMyReviewedIds(token).then((ids) => setReviewed(new Set(ids))).catch(() => {});
@@ -80,6 +99,11 @@ function MyAppointments() {
         </div>
       </div>
       <div className="appt-actions">
+        {prescribed.has(a._id) && (
+          <button className="btn btn-secondary btn-sm" disabled={pdfBusy === a._id} onClick={() => downloadRx(a)}>
+            {pdfBusy === a._id ? "Preparing..." : "Download prescription"}
+          </button>
+        )}
         {a.status === "completed" && (reviewed.has(a._id)
           ? <span className="tag">Reviewed</span>
           : <button className="btn btn-sm" onClick={() => { setMoving(""); setRating(rating === a._id ? "" : a._id); }}>Rate your visit</button>)}

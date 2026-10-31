@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { getTodayQueue, updateQueueStatus, callNextPatient } from "../api/queue.js";
 import StatusBadge from "../components/StatusBadge.jsx";
+import PrescriptionPanel from "../components/PrescriptionPanel.jsx";
+import { getPrescribedIds } from "../api/prescriptions.js";
 
 const POLL_MS = 10000; // refresh every 10 seconds
 
@@ -12,6 +14,12 @@ function DoctorQueue() {
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState(null);
   const [callingNext, setCallingNext] = useState(false);
+  const [rxFor, setRxFor] = useState(""); // appointment whose prescription form is open
+  const [prescribed, setPrescribed] = useState(new Set());
+
+  useEffect(() => {
+    if (token) getPrescribedIds(token).then((ids) => setPrescribed(new Set(ids))).catch(() => {});
+  }, [token]);
 
   const load = () =>
     getTodayQueue(token)
@@ -157,7 +165,8 @@ function DoctorQueue() {
           </thead>
           <tbody>
             {appointments.map((appt) => (
-              <tr key={appt._id}>
+              <Fragment key={appt._id}>
+              <tr>
                 <td>{appt.startTime}</td>
                 <td>{appt.queueNumber}</td>
                 <td>
@@ -174,9 +183,28 @@ function DoctorQueue() {
                   <StatusBadge status={appt.status} />
                 </td>
                 <td>
-                  <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>{actionsFor(appt)}</div>
+                  <div style={{ display: "flex", gap: "0.4rem", flexWrap: "wrap" }}>{actionsFor(appt)}
+                    {["in-consultation", "completed"].includes(appt.status) && (
+                      <button className="btn btn-secondary" style={{ padding: "0.3rem 0.7rem", fontSize: "0.8rem" }} onClick={() => setRxFor(rxFor === appt._id ? "" : appt._id)}>
+                        {prescribed.has(appt._id) ? "Edit prescription" : "Prescription"}
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
+              {rxFor === appt._id && (
+                <tr>
+                  <td colSpan={6}>
+                    <PrescriptionPanel
+                      appointment={appt}
+                      token={token}
+                      onClose={() => setRxFor("")}
+                      onSaved={(id) => setPrescribed((set) => new Set([...set, id]))}
+                    />
+                  </td>
+                </tr>
+              )}
+              </Fragment>
             ))}
           </tbody>
         </table>
