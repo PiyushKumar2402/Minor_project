@@ -6,8 +6,8 @@ const DATE_FORMAT_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 // @route  GET /api/slots/:doctorId?date=YYYY-MM-DD
 // @access Public
-// Automatically generates the day's slots the first time they're requested,
-// then returns the same persisted slots (with live status) on every later request.
+// Generates the day's slots when first requested, and keeps them in step with the
+// doctor's current hours on every later request.
 export const getSlotsForDate = async (req, res) => {
   try {
     const { doctorId } = req.params;
@@ -37,29 +37,31 @@ export const getSlotsForDate = async (req, res) => {
       return res.json({ date, day: dayName, isOff: true, slots: [] });
     }
 
-    // If slots already exist for this doctor+date, just return them (don't regenerate)
+    // Keep the day's slots in step with the doctor's current hours:
+    //  - add any slot that is missing (e.g. the doctor extended the hours),
+    //  - remove still-available slots that are no longer inside the hours,
+    //  - never touch booked slots.
+    const generated = generateSlotTimes(daySchedule.startTime, daySchedule.endTime, availability.slotDurationMinutes);
+    const wanted = new Set(generated.map((s) => s.startTime));
     let slots = await Slot.find({ doctor: doctorId, date }).sort({ startTime: 1 });
+    const have = new Set(slots.map((s) => s.startTime));
 
-    if (slots.length === 0) {
-      const generated = generateSlotTimes(daySchedule.startTime, daySchedule.endTime, availability.slotDurationMinutes);
+    const missing = generated.filter((s) => !have.has(s.startTime));
+    const stale = slots.filter((s) => s.status === "available" && !wanted.has(s.startTime)).map((s) => s._id);
 
-      if (generated.length > 0) {
-        const docs = generated.map((s) => ({
-          doctor: doctorId,
-          date,
-          startTime: s.startTime,
-          endTime: s.endTime,
-          status: "available",
-        }));
-
+    if (missing.length > 0 || stale.length > 0) {
+      if (stale.length > 0) await Slot.deleteMany({ _id: { $in: stale }, status: "available" });
+      if (missing.length > 0) {
         try {
-          slots = await Slot.insertMany(docs, { ordered: false });
+          await Slot.insertMany(
+            missing.map((s) => ({ doctor: doctorId, date, startTime: s.startTime, endTime: s.endTime, status: "available" })),
+            { ordered: false }
+          );
         } catch (insertError) {
-          // In case of a rare race condition (two requests generating at once),
-          // just re-fetch whatever ended up persisted rather than failing the request.
-          slots = await Slot.find({ doctor: doctorId, date }).sort({ startTime: 1 });
+          // a parallel request may have inserted the same slots; the re-fetch below returns whatever exists
         }
       }
+      slots = await Slot.find({ doctor: doctorId, date }).sort({ startTime: 1 });
     }
 
     res.json({ date, day: dayName, isOff: false, slots });
