@@ -1,5 +1,6 @@
 import Appointment from "../models/Appointment.js";
 import Slot from "../models/Slot.js";
+import QueueCounter from "../models/QueueCounter.js";
 import User from "../models/User.js";
 import { createZoomMeeting } from "../utils/zoom.js";
 import { todayInClinic, nowTimeInClinic } from "../utils/clinicDate.js";
@@ -14,18 +15,27 @@ const VALID_MODES = ["online", "in-person"];
 // Cancelled and no-show appointments don't count, so cancelling frees the day.
 const ACTIVE_STATUSES = ["booked", "waiting", "in-consultation"];
 
-// Queue number = the slot's position in that doctor's day (A01 = first slot, A02 = second...).
-// Because the slot itself is unique per booking, two patients can never get the same number,
-// and the numbers always follow appointment-time order, which is the order the queue is served in.
-// (Numbers can skip when a slot is unbooked, e.g. A01, A03, A04. That is expected.)
-const queueNumberForSlot = async (slot) => {
-  const position = await Slot.countDocuments({
-    doctor: slot.doctor,
-    date: slot.date,
-    startTime: { $lte: slot.startTime }, // "HH:MM" is zero-padded, so string comparison is time order
-  });
-  return "A" + String(position).padStart(2, "0");
+// Queue number = booking order for that doctor on that day (A01 = first person to book,
+// A02 = second...). An atomic counter hands out the numbers, so two patients can never get
+// the same one. Numbers are not reused: if someone cancels, their number is simply skipped.
+const nextQueue = async (doctorId, date) => {
+  const key = `${doctorId}:${date}`;
+  const bump = (upsert) => QueueCounter.findOneAndUpdate({ key }, { $inc: { seq: 1 } }, { upsert, new: true });
+  let doc;
+  try {
+    doc = await bump(true);
+  } catch (e) {
+    if (e.code !== 11000) throw e; // two first bookings raced to create the counter
+    doc = await bump(false);
+  }
+  return { queueSeq: doc.seq, queueNumber: "A" + String(doc.seq).padStart(2, "0") };
 };
+
+// Rescheduling to another time on the SAME day keeps your number; a different day gets a new one.
+const queueFor = async (appointment, slot) =>
+  appointment.date === slot.date
+    ? { queueNumber: appointment.queueNumber, queueSeq: appointment.queueSeq || 0 }
+    : nextQueue(appointment.doctor, slot.date);
 
 // Sends an email in the background. sendEmail() never throws, so this can never
 // break the request that triggered it, and the patient doesn't wait for Gmail.
@@ -90,7 +100,7 @@ export const bookAppointment = async (req, res) => {
 
     let appointment;
     try {
-      const queueNumber = await queueNumberForSlot(claimedSlot);
+      const { queueNumber, queueSeq } = await nextQueue(doctorId, claimedSlot.date);
 
       const details = {
         patient: req.user.id,
@@ -100,6 +110,7 @@ export const bookAppointment = async (req, res) => {
         startTime: claimedSlot.startTime,
         endTime: claimedSlot.endTime,
         queueNumber,
+        queueSeq,
         mode,
         reason,
       };
@@ -289,7 +300,7 @@ export const rescheduleAppointment = async (req, res) => {
         date: claimed.date,
         startTime: claimed.startTime,
         endTime: claimed.endTime,
-        queueNumber: await queueNumberForSlot(claimed),
+        ...(await queueFor(appointment, claimed)),
         reminderSentAt: null,
       };
       if (appointment.mode === "online") {

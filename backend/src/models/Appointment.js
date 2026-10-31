@@ -34,6 +34,7 @@ const appointmentSchema = new mongoose.Schema(
     startTime: { type: String, required: true },
     endTime: { type: String, required: true },
     queueNumber: { type: String, required: true },
+    queueSeq: { type: Number, default: 0 }, // booking order for that doctor and day (1, 2, 3...); queueNumber is "A" + this
 
     // ----- Consultation mode (Stage 6) -----
     mode: {

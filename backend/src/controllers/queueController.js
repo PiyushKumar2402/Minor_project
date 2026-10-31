@@ -94,12 +94,12 @@ export const getQueueStatus = async (req, res) => {
       status: "in-consultation",
     }).select("queueNumber");
 
-    // Checked-in patients with an earlier slot are served before you
+    // Checked-in patients with a smaller queue number (booked earlier) are served before you
     const waitingAhead = await Appointment.countDocuments({
       doctor: appointment.doctor._id,
       date: appointment.date,
       status: "waiting",
-      startTime: { $lt: appointment.startTime },
+      queueSeq: { $lt: appointment.queueSeq || 0 },
     });
 
     // Whoever is in with the doctor right now is also ahead of you (unless that is you)
@@ -131,7 +131,7 @@ export const getTodayQueue = async (req, res) => {
       status: { $ne: "cancelled" },
     })
       .populate("patient", "name phone")
-      .sort({ startTime: 1 });
+      .sort({ queueSeq: 1, startTime: 1 });
 
     const nowServing = appointments.find((a) => a.status === "in-consultation") || null;
 
@@ -206,7 +206,7 @@ export const updateStatus = async (req, res) => {
 
 // @route  POST /api/queue/doctor/call-next
 // @access Private/Doctor
-// Calls in the checked-in patient with the earliest slot time.
+// Calls in the checked-in patient with the smallest queue number (booked first).
 export const callNext = async (req, res) => {
   try {
     const today = todayInClinic();
@@ -225,7 +225,7 @@ export const callNext = async (req, res) => {
     const next = await Appointment.findOneAndUpdate(
       { doctor: req.user.id, date: today, status: "waiting" },
       { $set: { status: "in-consultation", ...stampFor("in-consultation") } },
-      { new: true, sort: { startTime: 1 } }
+      { new: true, sort: { queueSeq: 1, startTime: 1 } }
     ).populate("patient", "name phone");
 
     if (!next) {
