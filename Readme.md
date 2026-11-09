@@ -39,14 +39,14 @@ doctor-appointment-system/
 - [x] **Stage 2** — Authentication & user management
 - [x] **Stage 3** — Doctor management (admin)
 - [x] **Stage 4** — Doctor availability & automatic slot generation
-- [ ] **Stage 5** — Appointment booking core
-- [ ] **Stage 6** — Online/in-person consultation modes + Zoom integration
-- [ ] **Stage 7** — Gmail notification system
-- [ ] **Stage 8** — Patient queue management
-- [ ] **Stage 9** — Doctor dashboard
-- [ ] **Stage 10** — Admin dashboard
-- [ ] **Stage 11** — Reminders & polish
-- [ ] **Stage 12** — Deployment
+- [x] **Stage 5** — Appointment booking core
+- [x] **Stage 6** — Online/in-person consultation modes + Zoom integration
+- [x] **Stage 7** — Gmail notification system
+- [x] **Stage 8** — Patient queue management
+- [x] **Stage 9** — Doctor dashboard
+- [x] **Stage 10** — Admin dashboard
+- [x] **Stage 11** — Reminders & polish
+- [x] **Stage 12** — Deployment
 
 ## Getting Started
 
